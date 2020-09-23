@@ -3,6 +3,13 @@ from ifunny import objects
 from time import strftime, gmtime
 import timeago, datetime
 
+def ifunnyuser(data):
+    user = objects.User.by_nick(data, client=robot)
+    if user == None:
+        userid = objects.User(id=data, client=robot)
+        user = userid
+    return user
+
 def props(cls):
   return [i for i in cls.__dict__.keys() if i[:1] != '_']
 
