@@ -10,7 +10,7 @@ import requests
 import csv
 from io import StringIO
 from time import strftime, localtime, sleep
-from functions import createUserEmbed, createIPEmbed, createIPLookupEmbed
+from functions import *
 
 
 @robot.event(name = "on_connect")
