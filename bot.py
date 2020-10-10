@@ -10,7 +10,7 @@ import requests
 import csv
 from io import StringIO
 from time import strftime, localtime, sleep
-from functions import createUserEmbed, createIPEmbed, createIPLookupEmbed
+from functions import *
 
 
 @robot.event(name = "on_connect")
@@ -23,6 +23,8 @@ description = '''Discord bot to ineract with iFunny.co
 Bot owned by Request#0001'''
 bot = commands.Bot(command_prefix=commands.when_mentioned_or('$'), description=description, case_insensitive=True)
 allowedToGrabIPs = [370730771432079371, 443156642213920779, 414544308805435392, 625719520127877136, 699666917744705718, 386839413935570954, 201895055449915394, 662789287900610585] # Request, Tobi, Yakub, Defy, Bilk, MakeShiftArtist, Da_google
+noipgrab = ['5d69ed55a5369476372aa2af', '5f3174c2ec5740481655d41a', '5f31c815ec5740655a61e46e', '5ef252501348a65009117e97', '54deca36684fd0235b8b456e'] # Last 3 are MakeShift's accounts
+verified = ['5d69ed55a5369476372aa2af', '5f3174c2ec5740481655d41a']
 
 @bot.event
 async def on_ready():
@@ -36,28 +38,11 @@ async def on_ready():
 def _reply_with_same(message, args):
     print(f"You said {message.content}")
 
-# User's information
+# User Information
 @bot.command()
-async def userid(ctx, id: str):
+async def user(ctx, userorid: str):
     try:
-        user = objects.User(id=id, client=robot)
-        last_seen = None
-        if (user.can_chat and not user.id == "5d69ed55a5369476372aa2af"):
-            for i in user.chat.members:
-                if(i.__dict__['id'] == user.id):
-                    if(i.__dict__['_sb_data_payload']['last_seen_at']):
-                        last_seen = i.__dict__['_sb_data_payload']['last_seen_at']
-                        return await ctx.send(embed=createUserEmbed(user, lastSeen = last_seen))
-        return await ctx.send(embed=createUserEmbed(user))
-    except Exception as e:
-        embedVar = discord.Embed(title="Failed", description="Information about user %s failed" % id, color=0xFF0000)
-        embedVar.add_field(name="Reason", value=str(e))
-        return await ctx.send(embed=embedVar)
-
-@bot.command()
-async def user(ctx, username: str):
-    try:
-        user = objects.User.by_nick(username, client=robot)
+        user = ifunnyuser(userorid)
         last_seen = None
         if (user.can_chat and not user.id == "5d69ed55a5369476372aa2af"):
             for i in user.chat.members:
@@ -73,12 +58,12 @@ async def user(ctx, username: str):
         return await ctx.send(embed=embedVar)
 
 @bot.command()
-async def ip(ctx, username: str):
+async def ip(ctx, userorid: str):
     try:
         print(ctx.message.author.id not in allowedToGrabIPs)
         if (ctx.message.author.id not in allowedToGrabIPs):
             raise Exception("You are not allowed to IP grab users. Please ask Request#0002 to grab a user for you.")
-        user = objects.User.by_nick(username, client=robot)
+        user = ifunnyuser(userorid)
         if user.id == "5d69ed55a5369476372aa2af":
             raise Exception("You are not allowed to IP grab this user.")
         if user.id == "5f3174c2ec5740481655d41a":
@@ -95,12 +80,10 @@ async def ip(ctx, username: str):
         return await ctx.send(embed=embedVar)
 
 @bot.command()
-async def checkip(ctx, username: str):
+async def checkip(ctx, userorid: str):
     try:
-        user = objects.User.by_nick(username, client=robot)
-        if user.id == "5d69ed55a5369476372aa2af":
-            raise Exception("You are not allowed to IP grab this user.")
-        if user.id == "5f3174c2ec5740481655d41a":
+        user = ifunnyuser(userorid)
+        if user.id in noipgrab:
             raise Exception("You are not allowed to IP grab this user.")
         if not user.id.isalnum():
             raise Exception("User ID is not alphanumeric. Check logs <@{botOwnerID}>".format(botOwnerID=botOwnerID))
@@ -122,29 +105,25 @@ async def checkip(ctx, username: str):
 @bot.command()
 async def subscribe(ctx, username: str):
     try:
-        user = objects.User.by_nick(username, client=robot)
-        user.subscribe()
-        return await ctx.send("subbed lol")
+        user = ifunnyuser(userorid)
+        if user == None:
+            return await ctx.send('{} does not exist'.format(userorid)
+        elif user.is_subscription and user.id not in verified:
+            user.unsubscribe()
+            return await ctx.send("subbed lol")
+        elif user.id not in verified:
+            user.unsubscribe()
+            return await ctx.send("unsubbed lol")
     except Exception as e:
         embedVar = discord.Embed(title="Failed", description="Subscription to user %s failed" % username, color=0xFF0000)
         embedVar.add_field(name="Reason", value=str(e))
         return await ctx.send(embed=embedVar)
 
-@bot.command()
-async def unsubscribe(ctx, username: str):
-    try:
-        user = objects.User.by_nick(username, client=robot)
-        user.unsubscribe()
-        return await ctx.send("unsubbed lol")
-    except Exception as e:
-        embedVar = discord.Embed(title="Failed", description="Subscription to user %s failed" % username, color=0xFF0000)
-        embedVar.add_field(name="Reason", value=str(e))
-        return await ctx.send(embed=embedVar)
 
 @bot.command()
-async def smileall(ctx, username: str):
+async def smileall(ctx, userorid: str):
     try:
-        user = objects.User.by_nick(username, client=robot)
+        user = ifunnyuser(userorid)
         if user.post_count > 50:
             await ctx.send("Smiling first 50 posts")
         else:
@@ -180,9 +159,9 @@ async def ipinfo(ctx, ip: str):
         return await ctx.send(embed=embedVar)
 
 @bot.command()
-async def posts(ctx, username: str):
+async def posts(ctx, userorid: str):
     try:
-        user = objects.User.by_nick(username, client=robot)
+        user = ifunnyuser(userorid)
         fieldnames = ['url', 'fileURL', 'tags', 'created_at', 'publish_at', 'featured', 'smiles', 'unsmiles', 'republications', 'shares', 'views', 'comments', 'visibility', 'deleted_by_mods']
         if user.post_count > 50:
             await ctx.send("Collecting posts... This may take a while.")
